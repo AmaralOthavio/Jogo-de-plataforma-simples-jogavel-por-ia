@@ -15,10 +15,12 @@ TELA_ALTURA = 800
 # Imagens — substitua pelos seus arquivos em ./imgs/
 IMAGEM_BACKGROUND = pygame.transform.scale2x(pygame.image.load(os.path.join('imgs', 'bg.png')))
 IMAGEM_CHAO = pygame.transform.scale2x(pygame.image.load(os.path.join('imgs', 'base.png')))
+IMAGEM_CUBO = pygame.transform.scale2x(pygame.image.load(os.path.join('imgs', 'cubo.png')))
+IMAGEM_PLATAFORMA = pygame.transform.scale2x(pygame.image.load(os.path.join('imgs', 'plataforma.png')))
 
 # Configurações do cubo (usar retângulo simples, sem imagem)
-CUBO_LARGURA = 40
-CUBO_ALTURA = 40
+CUBO_LARGURA = 50
+CUBO_ALTURA = 50
 CUBO_X = 100  # posição fixa X do jogador (será sobrescrito para centralizar sobre a plataforma inicial)
 
 pygame.font.init()
@@ -39,8 +41,10 @@ class Cubo:
         self.retangulo = pygame.Rect(self.x, self.y, self.largura, self.altura)
         self.em_sobre = False  # indica se o cubo está sobre uma plataforma
 
+        # pré-escalar imagem do cubo ao tamanho do retângulo
+        self.img = pygame.transform.scale(IMAGEM_CUBO, (self.largura, self.altura))
+
     def pular(self):
-        # só pode pular se estiver sobre uma plataforma
         if self.em_sobre:
             self.vel = self.FORCA_PULO
             self.em_sobre = False
@@ -50,10 +54,12 @@ class Cubo:
         if self.vel > self.MAX_VELOCIDADE:
             self.vel = self.MAX_VELOCIDADE
         self.y += self.vel
-        self.retangulo.topleft = (self.x, round(self.y))
+        self.retangulo.topleft = (round(self.x), round(self.y))
 
     def desenhar(self, tela):
-        pygame.draw.rect(tela, (200, 30, 30), self.retangulo)
+        tela.blit(self.img, (round(self.x), round(self.y)))
+        # opção: desenhar retângulo de debug (colisão)
+        # pygame.draw.rect(tela, (255,0,0), self.retangulo, 1)
 
     def colidir_com(self, plataforma):
         return self.retangulo.colliderect(plataforma.ret)
@@ -67,15 +73,20 @@ class Plataforma:
         self.y = y
         self.largura = largura
         self.altura = altura
-        self.ret = pygame.Rect(self.x, self.y, self.largura, self.altura)
+        self.ret = pygame.Rect(round(self.x), self.y, self.largura, self.altura)
         self.passou = False  # não usado para score neste layout
+
+        # pré-escalar imagem da plataforma ao tamanho desejado
+        self.img = pygame.transform.scale(IMAGEM_PLATAFORMA, (self.largura, self.altura))
 
     def mover(self):
         self.x -= self.VELOCIDADE
         self.ret.topleft = (round(self.x), self.y)
 
     def desenhar(self, tela):
-        pygame.draw.rect(tela, (50, 150, 50), self.ret)
+        tela.blit(self.img, (round(self.x), self.y))
+        # opção: desenhar retângulo de debug (colisão)
+        # pygame.draw.rect(tela, (0,0,0), self.ret, 1)
 
 
 class Chao:
@@ -102,8 +113,31 @@ class Chao:
         tela.blit(self.IMAGEM, (self.x2, self.y))
 
 
-def desenhar_tela(tela, cubos, plataformas, chao, pontos, tempo_inicio, pontos_max=0):
-    tela.blit(IMAGEM_BACKGROUND, (0, 0))
+class Fundo:
+    VELOCIDADE = 2
+    LARGURA = IMAGEM_BACKGROUND.get_width()
+    ALTURA = IMAGEM_BACKGROUND.get_height()
+
+    def __init__(self):
+        self.x1 = 0
+        self.x2 = self.LARGURA
+
+    def mover(self):
+        self.x1 -= self.VELOCIDADE
+        self.x2 -= self.VELOCIDADE
+
+        if self.x1 + self.LARGURA < 0:
+            self.x1 = self.x2 + self.LARGURA
+        if self.x2 + self.LARGURA < 0:
+            self.x2 = self.x1 + self.LARGURA
+
+    def desenhar(self, tela):
+        tela.blit(IMAGEM_BACKGROUND, (self.x1, 0))
+        tela.blit(IMAGEM_BACKGROUND, (self.x2, 0))
+
+
+def desenhar_tela(tela, cubos, plataformas, chao, fundo, pontos, tempo_inicio, pontos_max=0):
+    fundo.desenhar(tela)
     for cubo in cubos:
         cubo.desenhar(tela)
     for p in plataformas:
@@ -171,6 +205,7 @@ def main(genomas, config):
         redes = []
 
     chao = Chao(730)
+    fundo = Fundo()
     plataformas = criar_plataformas_iniciais()
 
     # posicionar cubos corretamente sobre a primeira plataforma (centralizados)
@@ -288,6 +323,7 @@ def main(genomas, config):
 
         # mover chão (fundo em movimento)
         chao.mover()
+        fundo.mover()
 
         # atualizar pontuação por tempo (1 ponto por segundo vivo)
         segundos = int(time.time() - tempo_inicio)
@@ -301,7 +337,7 @@ def main(genomas, config):
         global max_pontos
         if pontos > max_pontos:
             max_pontos = pontos
-        desenhar_tela(tela, cubos, plataformas, chao, pontos, tempo_inicio, pontos_max=max_pontos)
+        desenhar_tela(tela, cubos, plataformas, chao, fundo, pontos, tempo_inicio, pontos_max=max_pontos)
 
 
 def rodar(caminhoConfig):
