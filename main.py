@@ -1,4 +1,5 @@
 import pygame
+import pygame_menu
 import os
 import random
 import neat
@@ -22,9 +23,14 @@ IMAGEM_PLATAFORMA = pygame.transform.scale2x(pygame.image.load(os.path.join('img
 CUBO_LARGURA = 50
 CUBO_ALTURA = 50
 CUBO_X = 100  # posição fixa X do jogador (será sobrescrito para centralizar sobre a plataforma inicial)
+CAMINHO_CONFIG = os.path.join(os.path.dirname(__file__), "config.txt")
 
 pygame.font.init()
-FONTE_PONTOS = pygame.font.SysFont('arial', 36)
+FONTE_PONTOS = pygame.font.SysFont('times-new-roman', 36)
+
+# Inicializa o Pygame e constrói a tela inicial
+pygame.init()
+screen = pygame.display.set_mode((TELA_LARGURA, TELA_ALTURA))
 
 
 class Cubo:
@@ -186,6 +192,40 @@ def posicionar_cubos_sobre_plataforma_inicial(cubos, plataformas):
         cubo.em_sobre = True
 
 
+def start_game():
+    rodar()
+
+
+def exit_game():
+    pygame.quit()
+    quit()
+
+
+def alterar_jogador(value, resposta):
+    global aiJogando
+    aiJogando = value[0][1]
+
+
+def show_menu():
+    global screen  # Declare screen as global
+    menu = pygame_menu.Menu('Menu principal', TELA_LARGURA, TELA_ALTURA, theme=pygame_menu.themes.THEME_BLUE)
+    menu.add.button('Jogar', start_game)
+    menu.add.button('Sair', exit_game)
+    # Add checkbox with the correct call
+    menu.add.selector('Ver IA jogando:', [('Sim', True), ('Não', False)], onchange=alterar_jogador)
+
+    while True:
+        events = pygame.event.get()  # Get all events
+        for event in events:
+            if event.type == pygame.QUIT:
+                exit_game()  # Handle quitting
+
+        screen.fill((0, 0, 0))  # Clear the screen
+        menu.update(events)  # Pass the list of events
+        menu.draw(screen)
+        pygame.display.flip()
+
+
 def main(genomas, config):
     global geracao
     geracao += 1
@@ -340,8 +380,8 @@ def main(genomas, config):
         desenhar_tela(tela, cubos, plataformas, chao, fundo, pontos, tempo_inicio, pontos_max=max_pontos)
 
 
-def rodar(caminhoConfig):
-    config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction, neat.DefaultSpeciesSet, neat.DefaultStagnation, caminhoConfig)
+def rodar():
+    config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction, neat.DefaultSpeciesSet, neat.DefaultStagnation, CAMINHO_CONFIG)
     populacao = neat.Population(config)
     populacao.add_reporter(neat.StdOutReporter(True))
     populacao.add_reporter(neat.StatisticsReporter())
@@ -352,6 +392,4 @@ def rodar(caminhoConfig):
 
 
 if __name__ == '__main__':
-    caminho = os.path.dirname(__file__)
-    caminhoConfig = os.path.join(caminho, "config.txt")
-    rodar(caminhoConfig)
+    show_menu()
